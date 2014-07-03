@@ -1,19 +1,90 @@
 package tw.idv.ctfan.taiwannextstation;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.util.Log;
+import android.widget.Toast;
 
 public class MockLocationProvider {
 	  String providerName;
 	  Context ctx;
+	  
+	  private class LOC {
+		  double lon;
+		  double lat;
+		  double alt;
+		  double spd;
+		  double head;
+		  
+		  
+		  public LOC(double longtitude, double latitude, double altitude, double speed, double head) {
+			  lon = longtitude;
+			  lat = latitude;
+			  alt = altitude;
+			  spd = speed;
+		  }
+		  
+		  public Location toLocation(String providerName) {
+			  Location loc = new Location(providerName);
+			  
+			  loc.setLongitude(lon);
+			  loc.setAltitude(alt);
+			  loc.setSpeed((float)spd);
+			  loc.setLatitude(lat);
+			  loc.setBearing((float)head);
+			  
+			  return loc;
+		  }
+	  };
+	  
+	  ArrayList<LOC> testCase;
+	  
+	  void LoadTestCase() {
+		  testCase = new ArrayList<LOC>();
+
+			try {
+				InputStream is = this.ctx.getApplicationContext().getResources().openRawResource(R.raw.testdata1);
+				BufferedReader fin = new BufferedReader(new InputStreamReader(is, "UTF-8") );
+				String line;
+				double lon, lat, alt, spd, head;
+				
+				while( (line = fin.readLine()) != null ){
+					String[] subLine = line.split(",");
+					if(subLine.length!=6) {
+						continue;
+					}
+					else if(subLine[0].matches("SN"))
+						continue;
+					else {
+						lon = Double.parseDouble(subLine[2]);
+						lat = Double.parseDouble(subLine[1]);
+						spd = Double.parseDouble(subLine[5]);
+						alt = Double.parseDouble(subLine[3]);
+						head = Double.parseDouble(subLine[4]);
+						
+						testCase.add(new LOC(lon, lat, alt, spd, head));
+					}
+				}
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
+	  }
 	 
 	  public MockLocationProvider(String name, Context ctx) {
 	    this.providerName = name;
 	    this.ctx = ctx;
+	    
+	    LoadTestCase();
 	 
 	    LocationManager lm = (LocationManager) ctx.getSystemService(
 	      Context.LOCATION_SERVICE);
@@ -36,6 +107,18 @@ public class MockLocationProvider {
 	    mockLocation.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());  
 	    lm.setTestProviderLocation(providerName, mockLocation);
 	  }
+	  
+	  @SuppressLint("NewApi")
+	public void pushLocation(LOC loc) {
+		    LocationManager lm = (LocationManager) ctx.getSystemService(
+		  	      Context.LOCATION_SERVICE);
+		    Location location = loc.toLocation(providerName);
+		    location.setTime(System.currentTimeMillis());
+		    location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+		    location.setAccuracy(10);
+		    
+		    lm.setTestProviderLocation(providerName, location);
+	  }
 	 
 	  public void shutdown() {
 	    LocationManager lm = (LocationManager) ctx.getSystemService(
@@ -53,77 +136,17 @@ public class MockLocationProvider {
 			this.handler = handler;
 		}
 		  
-		static final double[] lat = {
-			25.0683159661,
-			25.0778570026,
-			25.077923974,
-			25.0934529584,
-			25.1083340216,
-			25.1027510036,
-			25.1089279633,
-			25.0869060215,
-			25.0655439869,
-			25.0499640405,
-			25.0411529839,
-			25.0344959926
-		};
 		
-		static final double[] lon = {
-			121.6617349908,
-			121.6676299833,
-			121.6936230194,
-			121.7139280122,
-			121.7290539946,
-			121.761886999,
-			121.806147974,
-			121.8275309633,
-			121.822558986,
-			121.79784704,
-			121.7751630116,
-			121.7637509666
-		};
+		int counter = 0;
 		
-		static int station = 0;
-		static int count = 0;
-		static int status = 0;
-		
-		static double[] latList;
-		static double[] lonList;
-
 		@Override
 		public void run() {
-			if(count >= 0) {
-				if(status == 0) {
-					count--;
-					mlp.pushLocation(lat[station], lon[station]);
-				}
-				else if(status == 1) {
-					mlp.pushLocation(latList[count], lonList[count]);
-					count--;
-				}
-				
-			} else {
-				if(status == 0) {
-					count = 15;
-					status = 1;
-					latList = new double[count+1];
-					lonList = new double[count+1];
-					
-					double latDiff = (lat[station+1] - lat[station])/count;
-					double lonDiff = (lon[station+1] - lon[station])/count;
-					
-					for(int i=0; i<=count; i++) {
-						latList[count-i] = lat[station] + latDiff*i;
-						lonList[count-i] = lon[station] + lonDiff*i;
-					}
-				}
-				else if(status == 1) {
-					count = 5;
-					status = 0;
-					station++;
-					station %= lat.length-1;
-				}
+			if(counter>mlp.testCase.size()) {
+				Log.e("MockLocationProvider", "Counter is less then the size of test data " + counter + " " + mlp.testCase.size());
 			}
+			mlp.pushLocation(mlp.testCase.get(counter));
+			Log.v("Location ID", "" + counter);
+			counter++;
 			handler.postDelayed(this, 1000);
 		}		  
 	  }

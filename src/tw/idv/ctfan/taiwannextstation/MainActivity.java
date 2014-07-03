@@ -298,14 +298,14 @@ public class MainActivity extends Activity implements LocationListener{
 		LoadLineInfo(MainActivity.this.getApplicationContext());
 		LoadPos(MainActivity.this.getApplicationContext());		
 
-//		mock = new MockLocationProvider(LocationManager.NETWORK_PROVIDER, this);
+		mock = new MockLocationProvider(LocationManager.NETWORK_PROVIDER, this);
 		
 		locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);		
 		locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 1, this);		
 		locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 100, 1, this);
 		
-//		handler = new Handler();
-//		handler.postDelayed(new MockLocationProvider.MockLocSendRunnable(handler, mock), 3000);
+		handler = new Handler();
+		handler.postDelayed(new MockLocationProvider.MockLocSendRunnable(handler, mock), 3000);
 		
 		lineListView = (ListView)findViewById(R.id.otherLine);
 		lineArrayAdapter = new LineListAdapter(this, allLine);
